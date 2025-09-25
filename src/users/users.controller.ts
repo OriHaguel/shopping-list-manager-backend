@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { LoginDto } from './dto/login.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Controller('api/users')
@@ -10,6 +11,11 @@ export class UsersController {
   @Post('signup')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.signup(createUserDto);
+  }
+
+  @Post('login')
+  login(@Body() loginDto: LoginDto) {
+    return this.usersService.login(loginDto);
   }
 
   @Get()

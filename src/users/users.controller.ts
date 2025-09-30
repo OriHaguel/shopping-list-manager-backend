@@ -85,7 +85,7 @@ export class UsersController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      path: '/', // 🔑 ADDED: Ensure the path matches the set options for reliable deletion
+      path: '/',
     });
 
     return { message: 'Logout successful' };

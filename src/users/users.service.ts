@@ -79,7 +79,7 @@ export class UsersService {
     return {
       accessToken,
       refreshToken, // 🔑 The raw token for the cookie
-      user: { id: user._id, email: user.email },
+      user: { _id: user._id, email: user.email },
     };
   }
   async refresh(oldRefreshToken: string) { // 🔑 ACCEPT OLD TOKEN

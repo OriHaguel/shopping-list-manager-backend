@@ -11,14 +11,19 @@ import { ConfigService } from '@nestjs/config'; // 🔑 ADD ConfigService
 
 @Controller('api/users')
 export class UsersController {
+  private readonly refreshTokenCookieName: string;
+
   constructor(
     private readonly usersService: UsersService,
-    private readonly configService: ConfigService, // 🔑 Inject ConfigService
-  ) { }
+    private readonly configService: ConfigService,
+  ) {
+    this.refreshTokenCookieName =
+      process.env.NODE_ENV === 'production'
+        ? '__Host-refresh-token'
+        : 'refresh-token';
+  }
 
-  // 🔑 Helper to get refresh token maxAge in milliseconds
   private getRefreshTokenMaxAge(): number {
-    // Get the expiration in seconds and convert to milliseconds
     return this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS') * 1000;
   }
 
@@ -26,12 +31,12 @@ export class UsersController {
   async signup(@Body() dto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.usersService.signup(dto);
 
-    res.cookie('__Host-refresh-token', refreshToken, {
+    res.cookie(this.refreshTokenCookieName, refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: this.getRefreshTokenMaxAge(), // 🔑 Use dynamic config
-      path: '/'
+      maxAge: this.getRefreshTokenMaxAge(),
+      path: '/',
     });
 
     return { accessToken, user };
@@ -40,48 +45,40 @@ export class UsersController {
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.usersService.login(loginDto);
-    res.cookie('__Host-refresh-token', refreshToken, {
+    res.cookie(this.refreshTokenCookieName, refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: this.getRefreshTokenMaxAge(), // 🔑 Use dynamic config
-      path: '/'
+      maxAge: this.getRefreshTokenMaxAge(),
+      path: '/',
     });
     return { accessToken, user };
   }
 
-
   @Post('refresh')
   @UseGuards(RefreshTokenGuard)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    // Assuming the RefreshTokenGuard successfully verified and put the payload in req.user
-    // and the raw token is available in the cookies
-    const oldRefreshToken = req.cookies['__Host-refresh-token']; // Get the raw token from the cookie
+    const oldRefreshToken = req.cookies[this.refreshTokenCookieName];
+    const { accessToken, refreshToken, user } = await this.usersService.refresh(oldRefreshToken);
 
-    // Get the new tokens from the service
-    const { accessToken, refreshToken, user } = await this.usersService.refresh(oldRefreshToken); // Pass the old token
-
-    // Set the NEW refresh token in the cookie
-    res.cookie('__Host-refresh-token', refreshToken, {
+    res.cookie(this.refreshTokenCookieName, refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: this.getRefreshTokenMaxAge(), // 🔑 Use dynamic config
-      path: '/'
+      maxAge: this.getRefreshTokenMaxAge(),
+      path: '/',
     });
 
     return { accessToken, user };
   }
 
   @Post('logout')
-  @UseGuards(RefreshTokenGuard) // Use the guard to ensure a valid session
+  @UseGuards(RefreshTokenGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies['__Host-refresh-token'];
-
+    const refreshToken = req.cookies[this.refreshTokenCookieName];
     await this.usersService.logout(refreshToken);
 
-    // Clear the cookie from the client
-    res.clearCookie('__Host-refresh-token', {
+    res.clearCookie(this.refreshTokenCookieName, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',

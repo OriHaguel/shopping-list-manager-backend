@@ -28,6 +28,7 @@ export class RefreshTokenGuard implements CanActivate {
   }
 
   private extractTokenFromCookie(request: Request): string | undefined {
-    return request.cookies?.['__Host-refresh-token'];
+    const cookieName = process.env.NODE_ENV === 'production' ? '__Host-refresh-token' : 'refresh-token';
+    return request.cookies?.[cookieName];
   }
 }

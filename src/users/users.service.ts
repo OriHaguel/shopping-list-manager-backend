@@ -53,33 +53,40 @@ export class UsersService {
     // No need to throw an error if the token is not found or already revoked.
   }
 
-  private async issueTokens(user: User) { // 🔑 MAKE ASYNC
+  private async issueTokens(user: User) {
     const payload = { sub: user._id, email: user.email };
 
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get<string>('JWT_EXPIRES_IN'),
     });
 
-    const refreshExpirationSeconds = this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS'); // 🔑 Use a new config for seconds
+    const refreshExpirationSeconds = this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS');
 
     const refreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       expiresIn: refreshExpirationSeconds,
     });
 
-    // 🔑 NEW: Save the refresh token to the database
     const expiresAt = new Date();
     expiresAt.setTime(expiresAt.getTime() + refreshExpirationSeconds * 1000);
 
+    // Revoke all existing valid refresh tokens for this user
+    await this.refreshTokenModel.updateMany(
+      { userId: user._id, isRevoked: false },
+      { $set: { isRevoked: true } },
+    );
+
+    // Create the new refresh token
     await this.refreshTokenModel.create({
-      token: refreshToken, // You might hash this if you want an extra layer of security
+      token: refreshToken,
       userId: user._id,
       expiresAt: expiresAt,
     });
 
     return {
       accessToken,
-      refreshToken, // 🔑 The raw token for the cookie
-      user: { _id: user._id, email: user.email },
+      refreshToken,
+      user: { _id: user._id, email: user.email }, // FIX: Ensure 'id' field is returned
     };
   }
   async refresh(oldRefreshToken: string) { // 🔑 ACCEPT OLD TOKEN

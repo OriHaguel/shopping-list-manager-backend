@@ -7,87 +7,82 @@ import { LoginDto } from './dto/login.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Response } from 'express';
-import { ConfigService } from '@nestjs/config'; // 🔑 ADD ConfigService
+import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('api/users')
 export class UsersController {
   private readonly refreshTokenCookieName: string;
+  private readonly isProduction: boolean;
 
   constructor(
     private readonly usersService: UsersService,
     private readonly configService: ConfigService,
   ) {
-    this.refreshTokenCookieName =
-      process.env.NODE_ENV === 'production'
-        ? '__Host-refresh-token'
-        : 'refresh-token';
+    this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
+    this.refreshTokenCookieName = this.isProduction ? '__Host-refresh-token' : 'refresh-token';
   }
 
   private getRefreshTokenMaxAge(): number {
     return this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS') * 1000;
   }
 
+  private getCookieOptions() {
+    return {
+      httpOnly: true,
+      secure: this.isProduction,
+      sameSite: 'strict' as const,
+      maxAge: this.getRefreshTokenMaxAge(),
+      path: '/',
+      ...(this.isProduction && { domain: undefined }),
+    };
+  }
+
+  // STRICTER: 5 signup attempts per hour
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('signup')
   async signup(@Body() dto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.usersService.signup(dto);
-
-    res.cookie(this.refreshTokenCookieName, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: this.getRefreshTokenMaxAge(),
-      path: '/',
-    });
-
+    res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
     return { accessToken, user };
   }
 
+  // STRICTER: 5 login attempts per 15 minutes
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.usersService.login(loginDto);
-    res.cookie(this.refreshTokenCookieName, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: this.getRefreshTokenMaxAge(),
-      path: '/',
-    });
+    res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
     return { accessToken, user };
   }
 
+  // STRICTER: 3 refresh attempts per minute
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('refresh')
   @UseGuards(RefreshTokenGuard)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const oldRefreshToken = req.cookies[this.refreshTokenCookieName];
-    const { accessToken, refreshToken, user } = await this.usersService.refresh(oldRefreshToken);
-
-    res.cookie(this.refreshTokenCookieName, refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: this.getRefreshTokenMaxAge(),
-      path: '/',
-    });
-
+    const { jti, sub } = req.user as any;
+    const { accessToken, refreshToken, user } = await this.usersService.refresh(jti, sub);
+    res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
     return { accessToken, user };
   }
 
+  // Default rate limit (10 per minute from app.module.ts)
   @Post('logout')
   @UseGuards(RefreshTokenGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies[this.refreshTokenCookieName];
-    await this.usersService.logout(refreshToken);
-
+    const { jti } = req.user as any;
+    await this.usersService.logout(jti);
     res.clearCookie(this.refreshTokenCookieName, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: this.isProduction,
       sameSite: 'strict',
       path: '/',
     });
-
     return { message: 'Logout successful' };
   }
 
+  // Protected routes use default limit
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {

@@ -1,23 +1,24 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document } from 'mongoose';
 
-export type RefreshTokenDocument = RefreshToken & Document;
+@Schema({ timestamps: true })
+export class RefreshToken extends Document {
 
-@Schema()
-export class RefreshToken {
-    @Prop({ required: true, unique: true })
-    token: string; // The hashed token string
+    @Prop({ required: true, unique: true, index: true })
+    jti: string;
 
-    @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-    userId: Types.ObjectId; // Link to the user
+    @Prop({ required: true, index: true })
+    userId: string;
 
-    @Prop({ required: true })
-    expiresAt: Date; // Expiration date
+    @Prop({ required: true, index: true })
+    expiresAt: Date;
 
-    @Prop({ default: false })
-    isRevoked: boolean; // Flag to revoke on logout or breach
+    @Prop({ default: false, index: true })
+    isRevoked: boolean;
 }
 
 export const RefreshTokenSchema = SchemaFactory.createForClass(RefreshToken);
-// Optional: Add an index on expiresAt for cleanup
-RefreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+RefreshTokenSchema.index({ jti: 1 }, { unique: true });
+RefreshTokenSchema.index({ userId: 1, isRevoked: 1 });
+RefreshTokenSchema.index({ expiresAt: 1 }); // For cleanup cron job

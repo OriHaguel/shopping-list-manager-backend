@@ -6,16 +6,17 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User } from './entities/user.entity';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from './entities/refresh-token.entity';
-
 import { ConfigService } from '@nestjs/config';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshToken>, // 🔑 NEW
+    @InjectModel(RefreshToken.name) private refreshTokenModel: Model<RefreshToken>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) { }
@@ -24,7 +25,8 @@ export class UsersService {
     const existingUser = await this.userModel.findOne({ email: createUserDto.email });
     if (existingUser) throw new ConflictException('Email already exists');
 
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    // FIXED: Increased bcrypt rounds from 10 to 12 for better security
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 12);
     const createdUser = new this.userModel({
       ...createUserDto,
       password: hashedPassword,
@@ -44,17 +46,30 @@ export class UsersService {
     return this.issueTokens(user);
   }
 
-  async logout(refreshToken: string) {
-    // Find the token and set it as revoked
-    await this.refreshTokenModel.updateOne(
-      { token: refreshToken, isRevoked: false },
+  // FIXED: Accept jti directly instead of re-verifying token
+  async logout(jti: string) {
+    const tokenDoc = await this.refreshTokenModel.findOne({
+      jti: jti,
+      isRevoked: false,
+    });
+
+    if (tokenDoc) {
+      tokenDoc.isRevoked = true;
+      await tokenDoc.save();
+    }
+  }
+
+  async revokeAllUserTokens(userId: string) {
+    await this.refreshTokenModel.updateMany(
+      { userId, isRevoked: false },
       { $set: { isRevoked: true } },
     );
-    // No need to throw an error if the token is not found or already revoked.
   }
 
   private async issueTokens(user: User) {
     const payload = { sub: user._id, email: user.email };
+
+    const jti = crypto.randomBytes(32).toString('hex');
 
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get<string>('JWT_EXPIRES_IN'),
@@ -62,7 +77,9 @@ export class UsersService {
 
     const refreshExpirationSeconds = this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS');
 
-    const refreshToken = this.jwtService.sign(payload, {
+    const refreshPayload = { ...payload, jti };
+
+    const refreshToken = this.jwtService.sign(refreshPayload, {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       expiresIn: refreshExpirationSeconds,
     });
@@ -70,43 +87,53 @@ export class UsersService {
     const expiresAt = new Date();
     expiresAt.setTime(expiresAt.getTime() + refreshExpirationSeconds * 1000);
 
-    // Revoke all existing valid refresh tokens for this user
-    await this.refreshTokenModel.updateMany(
-      { userId: user._id, isRevoked: false },
-      { $set: { isRevoked: true } },
-    );
-
-    // Create the new refresh token
     await this.refreshTokenModel.create({
-      token: refreshToken,
+      jti: jti,
       userId: user._id,
       expiresAt: expiresAt,
+      isRevoked: false,
     });
 
     return {
       accessToken,
       refreshToken,
-      user: { _id: user._id, email: user.email }, // FIX: Ensure 'id' field is returned
+      user: { _id: user._id, email: user.email },
     };
   }
-  async refresh(oldRefreshToken: string) { // 🔑 ACCEPT OLD TOKEN
-    // 1. Find and validate the old refresh token
-    const tokenDoc = await this.refreshTokenModel.findOne({ token: oldRefreshToken });
 
-    if (!tokenDoc || tokenDoc.isRevoked || tokenDoc.expiresAt < new Date()) {
+  async refresh(refreshTokenJti: string, userId: string) {
+    const tokenDoc = await this.refreshTokenModel.findOne({
+      jti: refreshTokenJti,
+      userId: userId,
+      isRevoked: false,
+    });
+
+    if (!tokenDoc || tokenDoc.expiresAt < new Date()) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    // 2. Revoke the old token (Token Rotation)
+    // Token Rotation
     tokenDoc.isRevoked = true;
     await tokenDoc.save();
 
-    // 3. Find the user and issue a new pair of tokens
     const user = await this.userModel.findById(tokenDoc.userId);
     if (!user) throw new UnauthorizedException('User not found');
 
-    return this.issueTokens(user); // 🔑 Issues a new AT and a NEW RT (which is saved)
+    return this.issueTokens(user);
   }
+
+  @Cron('0 0 * * *')
+  async cleanupExpiredTokens() {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    await this.refreshTokenModel.deleteMany({
+      $or: [
+        { expiresAt: { $lt: new Date() } },
+        { isRevoked: true, createdAt: { $lt: thirtyDaysAgo } }
+      ]
+    });
+  }
+
   findAll() {
     return `This action returns all users`;
   }

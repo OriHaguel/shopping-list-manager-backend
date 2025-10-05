@@ -7,13 +7,14 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { RefreshToken, RefreshTokenSchema } from './entities/refresh-token.entity'; // 🔑 NEW
-
+import { RefreshToken, RefreshTokenSchema } from './entities/refresh-token.entity';
 import { RefreshTokenGuard } from './refresh-token.guard';
+import { ScheduleModule } from '@nestjs/schedule'; // Import ScheduleModule for cron jobs
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(), // Enable scheduled tasks
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: RefreshToken.name, schema: RefreshTokenSchema }

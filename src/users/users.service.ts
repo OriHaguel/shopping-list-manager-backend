@@ -69,9 +69,8 @@ export class UsersService {
   }
 
   private async issueTokens(user: User) {
-    const payload = { sub: user._id, email: user.email };
-
     const jti = crypto.randomBytes(32).toString('hex');
+    const payload = { sub: user._id, email: user.email, jti };
 
     const accessToken = this.jwtService.sign(payload, {
       expiresIn: this.configService.get<string>('JWT_EXPIRES_IN'),
@@ -79,7 +78,8 @@ export class UsersService {
 
     const refreshExpirationSeconds = this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS');
 
-    const refreshPayload = { ...payload, jti };
+    const refreshJti = crypto.randomBytes(32).toString('hex');
+    const refreshPayload = { sub: user._id, email: user.email, jti: refreshJti, accessJti: jti };
 
     const refreshToken = this.jwtService.sign(refreshPayload, {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
@@ -90,7 +90,7 @@ export class UsersService {
     expiresAt.setTime(expiresAt.getTime() + refreshExpirationSeconds * 1000);
 
     await this.refreshTokenModel.create({
-      jti: jti,
+      jti: refreshJti,
       userId: user._id,
       expiresAt: expiresAt,
       isRevoked: false,

@@ -28,17 +28,19 @@ export class UsersController {
   }
 
   private getCookieOptions() {
-    return {
+    const baseOptions = {
       httpOnly: true,
       secure: this.isProduction,
       sameSite: 'strict' as const,
       maxAge: this.getRefreshTokenMaxAge(),
       path: '/',
-      ...(this.isProduction && { domain: undefined }),
     };
+
+    // __Host- prefix requires secure=true, path='/', and NO domain attribute
+    // Don't include domain at all, not even as undefined
+    return baseOptions;
   }
 
-  // STRICTER: 5 signup attempts per hour
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('signup')
   async signup(@Body() dto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
@@ -47,7 +49,6 @@ export class UsersController {
     return { accessToken, user };
   }
 
-  // STRICTER: 5 login attempts per 15 minutes
   @Throttle({ default: { limit: 5, ttl: 900000 } })
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
@@ -56,7 +57,6 @@ export class UsersController {
     return { accessToken, user };
   }
 
-  // STRICTER: 3 refresh attempts per minute
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('refresh')
   @UseGuards(RefreshTokenGuard)
@@ -67,7 +67,7 @@ export class UsersController {
     return { accessToken, user };
   }
 
-  // Default rate limit (10 per minute from app.module.ts)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('logout')
   @UseGuards(RefreshTokenGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -82,7 +82,6 @@ export class UsersController {
     return { message: 'Logout successful' };
   }
 
-  // Protected routes use default limit
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {

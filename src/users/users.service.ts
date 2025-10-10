@@ -25,7 +25,6 @@ export class UsersService {
     const existingUser = await this.userModel.findOne({ email: createUserDto.email });
     if (existingUser) throw new ConflictException('Email already exists');
 
-    // FIXED: Increased bcrypt rounds from 10 to 12 for better security
     const hashedPassword = await bcrypt.hash(createUserDto.password, 12);
     const createdUser = new this.userModel({
       ...createUserDto,
@@ -38,15 +37,18 @@ export class UsersService {
 
   async login(loginDto: LoginDto) {
     const user = await this.userModel.findOne({ email: loginDto.email }).select('+password');
-    if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const isPasswordMatching = await bcrypt.compare(loginDto.password, user.password);
-    if (!isPasswordMatching) throw new UnauthorizedException('Invalid credentials');
+    // Always hash the password even if user doesn't exist (constant-time)
+    const passwordToCompare = user?.password || '$2b$12$dummyhashtopreventtimingattack1234567890123456789012';
+    const isPasswordMatching = await bcrypt.compare(loginDto.password, passwordToCompare);
+
+    if (!user || !isPasswordMatching) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
 
     return this.issueTokens(user);
   }
 
-  // FIXED: Accept jti directly instead of re-verifying token
   async logout(jti: string) {
     const tokenDoc = await this.refreshTokenModel.findOne({
       jti: jti,
@@ -105,14 +107,25 @@ export class UsersService {
     const tokenDoc = await this.refreshTokenModel.findOne({
       jti: refreshTokenJti,
       userId: userId,
-      isRevoked: false,
     });
 
-    if (!tokenDoc || tokenDoc.expiresAt < new Date()) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+    // CRITICAL SECURITY: Detect refresh token reuse
+    if (!tokenDoc) {
+      // Token doesn't exist - possible attack
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Token Rotation
+    if (tokenDoc.isRevoked) {
+      // REUSE DETECTED: Token was already used/revoked - revoke all user tokens
+      await this.revokeAllUserTokens(userId);
+      throw new UnauthorizedException('Token reuse detected - all sessions invalidated');
+    }
+
+    if (tokenDoc.expiresAt < new Date()) {
+      throw new UnauthorizedException('Refresh token expired');
+    }
+
+    // Token Rotation: Mark current token as used
     tokenDoc.isRevoked = true;
     await tokenDoc.save();
 

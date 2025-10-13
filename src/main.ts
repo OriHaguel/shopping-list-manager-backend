@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
 import * as cookieParser from 'cookie-parser';
 import { getConnectionToken } from '@nestjs/mongoose';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -22,6 +23,7 @@ async function bootstrap() {
     ],
     credentials: true,
   });
+  app.use(helmet());
   app.use(cookieParser());
   await app.listen(process.env.PORT ?? 3030);
 }

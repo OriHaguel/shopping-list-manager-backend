@@ -6,6 +6,8 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { CsrfGuard } from './csrf.guard';
+import { CsrfService } from './csrf.service';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
@@ -18,6 +20,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly configService: ConfigService,
+    private readonly csrfService: CsrfService,
   ) {
     this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
     this.refreshTokenCookieName = this.isProduction ? '__Host-refresh-token' : 'refresh-token';
@@ -36,40 +39,63 @@ export class UsersController {
       path: '/',
     };
 
-    // __Host- prefix requires secure=true, path='/', and NO domain attribute
-    // Don't include domain at all, not even as undefined
     return baseOptions;
+  }
+
+  // New endpoint to get CSRF token
+  @Get('csrf-token')
+  getCsrfToken(@Res({ passthrough: true }) res: Response) {
+    const csrfToken = this.csrfService.generateToken();
+    this.csrfService.setCsrfCookie(res, csrfToken);
+    return { csrfToken };
   }
 
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('signup')
+  @UseGuards(CsrfGuard)
   async signup(@Body() dto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.usersService.signup(dto);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
-    return { accessToken, user };
+
+    // Generate new CSRF token after signup
+    const csrfToken = this.csrfService.generateToken();
+    this.csrfService.setCsrfCookie(res, csrfToken);
+
+    return { accessToken, user, csrfToken };
   }
 
   @Throttle({ default: { limit: 5, ttl: 900000 } })
   @Post('login')
+  @UseGuards(CsrfGuard)
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.usersService.login(loginDto);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
-    return { accessToken, user };
+
+    // Generate new CSRF token after login
+    const csrfToken = this.csrfService.generateToken();
+    this.csrfService.setCsrfCookie(res, csrfToken);
+
+    return { accessToken, user, csrfToken };
   }
 
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('refresh')
-  @UseGuards(RefreshTokenGuard)
+  @UseGuards(RefreshTokenGuard, CsrfGuard)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { jti, sub } = req.user as any;
     const { accessToken, refreshToken, user } = await this.usersService.refresh(jti, sub);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
-    return { accessToken, user };
+
+    // Generate new CSRF token after refresh
+    const csrfToken = this.csrfService.generateToken();
+    this.csrfService.setCsrfCookie(res, csrfToken);
+
+    return { accessToken, user, csrfToken };
   }
 
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('logout')
-  @UseGuards(RefreshTokenGuard)
+  @UseGuards(RefreshTokenGuard, CsrfGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { jti } = req.user as any;
     await this.usersService.logout(jti);
@@ -79,6 +105,10 @@ export class UsersController {
       sameSite: 'strict',
       path: '/',
     });
+
+    // Clear CSRF token on logout
+    this.csrfService.clearCsrfCookie(res);
+
     return { message: 'Logout successful' };
   }
 

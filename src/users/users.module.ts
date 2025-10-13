@@ -9,12 +9,14 @@ import { JwtStrategy } from './jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RefreshToken, RefreshTokenSchema } from './entities/refresh-token.entity';
 import { RefreshTokenGuard } from './refresh-token.guard';
-import { ScheduleModule } from '@nestjs/schedule'; // Import ScheduleModule for cron jobs
+import { CsrfGuard } from './csrf.guard';
+import { CsrfService } from './csrf.service';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ScheduleModule.forRoot(), // Enable scheduled tasks
+    ScheduleModule.forRoot(),
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: RefreshToken.name, schema: RefreshTokenSchema }
@@ -30,7 +32,7 @@ import { ScheduleModule } from '@nestjs/schedule'; // Import ScheduleModule for 
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService, JwtStrategy, RefreshTokenGuard],
-  exports: [JwtStrategy, PassportModule],
+  providers: [UsersService, JwtStrategy, RefreshTokenGuard, CsrfGuard, CsrfService],
+  exports: [JwtStrategy, PassportModule, CsrfService],
 })
 export class UsersModule { }

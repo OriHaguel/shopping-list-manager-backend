@@ -64,7 +64,7 @@ export class UsersController {
     return { accessToken, user, csrfToken };
   }
 
-  @Throttle({ default: { limit: 5, ttl: 900000 } })
+  // @Throttle({ default: { limit: 5, ttl: 900000 } }) ==== uncoment======
   @Post('login')
   @UseGuards(CsrfGuard)
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
@@ -78,14 +78,15 @@ export class UsersController {
     return { accessToken, user, csrfToken };
   }
 
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  // @Throttle({ default: { limit: 3, ttl: 60000 } }) ==== uncoment======
   @Post('refresh')
-  @UseGuards(RefreshTokenGuard, CsrfGuard)
+  @UseGuards(RefreshTokenGuard)
+  // @UseGuards(RefreshTokenGuard, CsrfGuard)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { jti, sub } = req.user as any;
     const { accessToken, refreshToken, user } = await this.usersService.refresh(jti, sub);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
-
+    console.log('hello');
     // Generate new CSRF token after refresh
     const csrfToken = this.csrfService.generateToken();
     this.csrfService.setCsrfCookie(res, csrfToken);

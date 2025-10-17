@@ -4,16 +4,16 @@ import { Document } from 'mongoose';
 @Schema({ timestamps: true })
 export class RefreshToken extends Document {
 
-    @Prop({ required: true, unique: true, index: true })
+    @Prop({ required: true })
     jti: string;
 
-    @Prop({ required: true, index: true })
+    @Prop({ required: true })
     userId: string;
 
-    @Prop({ required: true, index: true })
+    @Prop({ required: true })
     expiresAt: Date;
 
-    @Prop({ default: false, index: true })
+    @Prop({ default: false })
     isRevoked: boolean;
 }
 

@@ -8,6 +8,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from './users/users.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ListsModule } from './lists/lists.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { APP_GUARD } from '@nestjs/core';
       limit: 60, // 10 requests per minute
     }]),
     UsersModule,
+    ListsModule,
   ],
   controllers: [AppController],
   providers: [AppService, {

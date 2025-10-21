@@ -80,8 +80,8 @@ export class UsersController {
 
   // @Throttle({ default: { limit: 3, ttl: 60000 } }) ==== uncoment======
   @Post('refresh')
-  @UseGuards(RefreshTokenGuard)
-  // @UseGuards(RefreshTokenGuard, CsrfGuard)
+  // @UseGuards(RefreshTokenGuard)
+  @UseGuards(RefreshTokenGuard, CsrfGuard)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { jti, sub } = req.user as any;
     const { accessToken, refreshToken, user } = await this.usersService.refresh(jti, sub);

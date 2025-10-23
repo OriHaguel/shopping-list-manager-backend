@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ListsModule } from './lists/lists.module';
+import { ItemsModule } from './items/items.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ListsModule } from './lists/lists.module';
     }]),
     UsersModule,
     ListsModule,
+    ItemsModule,
   ],
   controllers: [AppController],
   providers: [AppService, {

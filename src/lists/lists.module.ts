@@ -8,5 +8,6 @@ import { List, ListSchema } from './entities/list.entity';
   imports: [MongooseModule.forFeature([{ name: List.name, schema: ListSchema }])],
   controllers: [ListsController],
   providers: [ListsService],
+  exports: [ListsService],
 })
-export class ListsModule {}
+export class ListsModule { }

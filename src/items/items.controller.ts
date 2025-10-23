@@ -14,8 +14,8 @@ export class ItemsController {
     return this.itemsService.create(createItemDto, req.user.userId);
   }
 
-  @Get()
-  findAll(@Query('listId') listId: string, @Req() req) {
+  @Get('all/:listId')
+  findAll(@Param('listId') listId: string, @Req() req) {
     return this.itemsService.findAll(listId, req.user.userId);
   }
 

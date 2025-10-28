@@ -27,7 +27,7 @@ export class UsersController {
   }
 
   private getRefreshTokenMaxAge(): number {
-    return this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS') * 1000;
+    return Number(this.configService.get('JWT_REFRESH_EXPIRES_IN_SECONDS')) * 1000;
   }
 
   private getCookieOptions() {

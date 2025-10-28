@@ -72,27 +72,26 @@ export class UsersService {
     const jti = crypto.randomBytes(32).toString('hex');
     const payload = { sub: user._id, email: user.email, jti };
 
+    // Access token (human-readable duration)
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN'),
+      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN'), // e.g., '15m'
     });
 
-    const refreshExpirationSeconds = this.configService.get<number>('JWT_REFRESH_EXPIRES_IN_SECONDS');
-
+    // Refresh token
     const refreshJti = crypto.randomBytes(32).toString('hex');
     const refreshPayload = { sub: user._id, email: user.email, jti: refreshJti, accessJti: jti };
-
     const refreshToken = this.jwtService.sign(refreshPayload, {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: refreshExpirationSeconds,
+      expiresIn: Number(this.configService.get('JWT_REFRESH_EXPIRES_IN_SECONDS')), // Pass as number
     });
 
-    const expiresAt = new Date();
-    expiresAt.setTime(expiresAt.getTime() + refreshExpirationSeconds * 1000);
-
+    // Calculate expiry for cookie / DB
+    const expiresAt = new Date(Date.now() + (Number(this.configService.get('JWT_REFRESH_EXPIRES_IN_SECONDS')) * 1000));
+    // Save refresh token in DB
     await this.refreshTokenModel.create({
       jti: refreshJti,
       userId: user._id,
-      expiresAt: expiresAt,
+      expiresAt,
       isRevoked: false,
     });
 

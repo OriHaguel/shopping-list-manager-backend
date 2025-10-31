@@ -57,6 +57,7 @@ export class UsersService {
 
     if (tokenDoc) {
       tokenDoc.isRevoked = true;
+      tokenDoc.rotatedAt = new Date(); // Mark rotation time
       await tokenDoc.save();
     }
   }
@@ -64,11 +65,11 @@ export class UsersService {
   async revokeAllUserTokens(userId: string) {
     await this.refreshTokenModel.updateMany(
       { userId, isRevoked: false },
-      { $set: { isRevoked: true } },
+      { $set: { isRevoked: true, rotatedAt: new Date() } }, // Mark rotation time
     );
   }
 
-  private async issueTokens(user: User) {
+  private async issueTokens(user: User, oldJti?: string) {
     const jti = crypto.randomBytes(32).toString('hex');
     const payload = { sub: user._id, email: user.email, jti };
 
@@ -87,7 +88,18 @@ export class UsersService {
 
     // Calculate expiry for cookie / DB
     const expiresAt = new Date(Date.now() + (Number(this.configService.get('JWT_REFRESH_EXPIRES_IN_SECONDS')) * 1000));
-    // Save refresh token in DB
+
+    // Revoke old token if one is passed
+    if (oldJti) {
+      const oldToken = await this.refreshTokenModel.findOne({ jti: oldJti });
+      if (oldToken) {
+        oldToken.isRevoked = true;
+        oldToken.rotatedAt = new Date();
+        await oldToken.save();
+      }
+    }
+
+    // Save new refresh token in DB
     await this.refreshTokenModel.create({
       jti: refreshJti,
       userId: user._id,
@@ -108,30 +120,62 @@ export class UsersService {
       userId: userId,
     });
 
-    // CRITICAL SECURITY: Detect refresh token reuse
     if (!tokenDoc) {
-      // Token doesn't exist - possible attack
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    const now = new Date();
+
     if (tokenDoc.isRevoked) {
-      // REUSE DETECTED: Token was already used/revoked - revoke all user tokens
-      await this.revokeAllUserTokens(userId);
-      throw new UnauthorizedException('Token reuse detected - all sessions invalidated');
+      // Check if the token is within the grace period
+      const gracePeriodEnd = this.getGracePeriod(tokenDoc.rotatedAt);
+      if (now > gracePeriodEnd) {
+        // REUSE DETECTED: Token was used/revoked after grace period - revoke all user tokens
+        await this.revokeAllUserTokens(userId);
+        throw new UnauthorizedException('Token reuse detected - all sessions invalidated');
+      }
     }
 
-    if (tokenDoc.expiresAt < new Date()) {
+    if (tokenDoc.expiresAt < now) {
       throw new UnauthorizedException('Refresh token expired');
     }
 
-    // Token Rotation: Mark current token as used
+    // If token is in grace period, don't issue new one, just return existing valid one
+    if (tokenDoc.isRevoked) {
+      const unrevokedToken = await this.refreshTokenModel.findOne({
+        userId: userId,
+        isRevoked: false,
+        expiresAt: { $gt: now }
+      });
+      // This should ideally find the newest token, but for now, any valid one is fine
+      if (unrevokedToken) {
+        const user = await this.userModel.findById(tokenDoc.userId);
+        if (!user) throw new UnauthorizedException('User not found');
+
+        // Re-issue tokens based on the valid, unrevoked token's user
+        // This avoids creating a new token when one is already pending rotation
+        return this.issueTokens(user, unrevokedToken.jti);
+      }
+    }
+
+    // Standard Token Rotation: Mark current token as used
     tokenDoc.isRevoked = true;
+    tokenDoc.rotatedAt = now;
     await tokenDoc.save();
 
     const user = await this.userModel.findById(tokenDoc.userId);
     if (!user) throw new UnauthorizedException('User not found');
 
-    return this.issueTokens(user);
+    return this.issueTokens(user, refreshTokenJti);
+  }
+
+  private getGracePeriod(rotatedAt: Date | null): Date {
+    const gracePeriod = new Date(0);
+    if (rotatedAt) {
+      const gracePeriodSeconds = Number(this.configService.get('JWT_REFRESH_GRACE_PERIOD_SECONDS'));
+      gracePeriod.setTime(rotatedAt.getTime() + gracePeriodSeconds * 1000);
+    }
+    return gracePeriod;
   }
 
   @Cron('0 0 * * *')
@@ -141,7 +185,7 @@ export class UsersService {
     await this.refreshTokenModel.deleteMany({
       $or: [
         { expiresAt: { $lt: new Date() } },
-        { isRevoked: true, createdAt: { $lt: thirtyDaysAgo } }
+        { isRevoked: true, rotatedAt: { $lt: thirtyDaysAgo } }
       ]
     });
   }

@@ -15,6 +15,9 @@ export class RefreshToken extends Document {
 
     @Prop({ default: false })
     isRevoked: boolean;
+
+    @Prop({ type: Date, default: null })
+    rotatedAt: Date | null;
 }
 
 export const RefreshTokenSchema = SchemaFactory.createForClass(RefreshToken);

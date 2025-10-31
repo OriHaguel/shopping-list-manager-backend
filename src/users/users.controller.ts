@@ -78,12 +78,12 @@ export class UsersController {
     return { accessToken, user, csrfToken };
   }
 
-  // @Throttle({ default: { limit: 3, ttl: 60000 } }) ==== uncoment======
+  // @Throttle({ default: { limit: 1, ttl: 20000 } })
   @Post('refresh')
   // @UseGuards(RefreshTokenGuard)
   @UseGuards(RefreshTokenGuard, CsrfGuard)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const { jti, sub } = req.user as any;
+    const { jti, sub } = req.user as { jti: string, sub: string };
     const { accessToken, refreshToken, user } = await this.usersService.refresh(jti, sub);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
     console.log('hello');

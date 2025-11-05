@@ -19,19 +19,25 @@ export class RefreshTokenGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromCookie(request);
+    console.log('Refresh token:', token);
 
     if (!token) {
-      throw new UnauthorizedException('Refresh token not found');
+      // throw new UnauthorizedException('Refresh token not found');
+      return false;
     }
 
     try {
+      const secret = String(this.configService.get('JWT_REFRESH_SECRET'));
+      console.log('Refresh secret:', secret);
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: String(this.configService.get('JWT_REFRESH_SECRET')),
+        secret: secret,
       });
       // FIXED: Store full payload including jti for service to use
       request['user'] = payload;
     } catch (error) {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      console.error('Refresh token verification error:', error);
+      // throw new UnauthorizedException('Invalid or expired refresh token');
+      return false;
     }
 
     return true;

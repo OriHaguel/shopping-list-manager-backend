@@ -15,11 +15,11 @@ export class CreateItemDto {
 
   @IsBoolean()
   @IsOptional()
-  checked?: boolean;
+  checked: boolean;
 
   @IsNumber()
   @IsOptional()
-  price?: number;
+  price: number;
 
   @IsString()
   @IsOptional()

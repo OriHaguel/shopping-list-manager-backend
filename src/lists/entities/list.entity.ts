@@ -6,8 +6,8 @@ export class List extends Document {
     @Prop()
     name: string;
 
-    @Prop({ required: true, select: false })
-    userId: string;
+    @Prop({ type: [String], required: true, select: false })
+    userId: string[];
 }
 
 export const ListSchema = SchemaFactory.createForClass(List);

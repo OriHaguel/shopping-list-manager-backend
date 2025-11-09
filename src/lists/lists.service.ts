@@ -4,15 +4,19 @@ import { UpdateListDto } from './dto/update-list.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { List } from './entities/list.entity';
 import { Model } from 'mongoose';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class ListsService {
-  constructor(@InjectModel(List.name) private listModel: Model<List>) {}
+  constructor(
+    @InjectModel(List.name) private listModel: Model<List>,
+    private readonly usersService: UsersService,
+  ) { }
 
   async create(createListDto: CreateListDto, userId: string): Promise<List> {
     const newList = new this.listModel({
       ...createListDto,
-      userId,
+      userId: [userId],
     });
     return newList.save();
   }
@@ -43,5 +47,27 @@ export class ListsService {
       throw new NotFoundException(`List with ID '${id}' not found`);
     }
     return { message: `List with ID '${id}' has been successfully deleted` };
+  }
+
+  async addUser(id: string, email: string, currentUserId: string): Promise<List> {
+    const list = await this.listModel.findOne({ _id: id, userId: currentUserId }).select('+userId').exec();
+
+    if (!list) {
+      throw new NotFoundException(`List with ID '${id}' not found or you don't have permission to modify it.`);
+    }
+    const userToAdd = await this.usersService.findByEmail(email);
+
+    if (!userToAdd) {
+      throw new NotFoundException(`User with email '${email}' not found`)
+    }
+    const newUserId = userToAdd._id.toString();
+
+    if (list.userId.includes(newUserId)) {
+      return list;
+    }
+
+    list.userId.push(newUserId);
+
+    return list.save();
   }
 }

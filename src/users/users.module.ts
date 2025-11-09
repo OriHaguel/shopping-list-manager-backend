@@ -33,6 +33,6 @@ import { ScheduleModule } from '@nestjs/schedule';
   ],
   controllers: [UsersController],
   providers: [UsersService, JwtStrategy, RefreshTokenGuard, CsrfGuard, CsrfService],
-  exports: [JwtStrategy, PassportModule, CsrfService],
+  exports: [UsersService, JwtStrategy, PassportModule, CsrfService],
 })
 export class UsersModule { }

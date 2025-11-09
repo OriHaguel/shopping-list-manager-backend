@@ -190,6 +190,10 @@ export class UsersService {
     });
   }
 
+  async findByEmail(email: string): Promise<User> {
+    return this.userModel.findOne({ email }).exec();
+  }
+
   findAll() {
     return `This action returns all users`;
   }

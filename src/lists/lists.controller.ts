@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req, Put } from '@nestjs/common';
 import { ListsService } from './lists.service';
 import { CreateListDto } from './dto/create-list.dto';
 import { UpdateListDto } from './dto/update-list.dto';
 import { JwtAuthGuard } from '../users/jwt-auth.guard';
 import { Request } from 'express';
+import { AddUserToListDto } from './dto/add-user-to-list.dto';
 
 @Controller('api/lists')
 @UseGuards(JwtAuthGuard)
@@ -38,5 +39,11 @@ export class ListsController {
   remove(@Param('id') id: string, @Req() req: Request) {
     const userId = (req.user as any).userId;
     return this.listsService.remove(id, userId);
+  }
+
+  @Put(':id/share')
+  addUser(@Param('id') id: string, @Body() addUserToListDto: AddUserToListDto, @Req() req: Request) {
+    const currentUserId = (req.user as any).userId;
+    return this.listsService.addUser(id, addUserToListDto.email, currentUserId);
   }
 }

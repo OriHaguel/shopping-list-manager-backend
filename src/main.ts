@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
-import * as cookieParser from 'cookie-parser';
+const cookieParser = require('cookie-parser');
 import { getConnectionToken } from '@nestjs/mongoose';
 import helmet from 'helmet';
 

@@ -86,7 +86,6 @@ export class UsersController {
     const { jti, sub } = req.user as { jti: string, sub: string };
     const { accessToken, refreshToken, user } = await this.usersService.refresh(jti, sub);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
-    console.log('hello');
     // Generate new CSRF token after refresh
     const csrfToken = this.csrfService.generateToken();
     this.csrfService.setCsrfCookie(res, csrfToken);

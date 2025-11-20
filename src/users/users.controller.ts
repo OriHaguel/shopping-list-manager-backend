@@ -34,7 +34,7 @@ export class UsersController {
     const baseOptions = {
       httpOnly: true,
       secure: this.isProduction,
-      sameSite: 'strict' as const,
+      sameSite: 'none' as const,
       maxAge: this.getRefreshTokenMaxAge(),
       path: '/',
     };

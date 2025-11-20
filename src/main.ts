@@ -23,7 +23,7 @@ async function bootstrap() {
     ],
     credentials: true,
   });
-  app.use(helmet());
+  // app.use(helmet());
   app.use(cookieParser());
   await app.listen(process.env.PORT ?? 3030);
 }

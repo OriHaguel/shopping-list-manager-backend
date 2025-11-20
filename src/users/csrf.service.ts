@@ -21,7 +21,7 @@ export class CsrfService {
         const cookieOptions = {
             httpOnly: true,
             secure: this.isProduction,
-            sameSite: 'strict' as const,
+            sameSite: this.isProduction ? 'none' as const : 'lax' as const,
             maxAge: 24 * 60 * 60 * 1000, // 24 hours
             path: '/',
         };
@@ -33,7 +33,7 @@ export class CsrfService {
         res.clearCookie(this.csrfCookieName, {
             httpOnly: true,
             secure: this.isProduction,
-            sameSite: 'strict',
+            sameSite: this.isProduction ? 'none' : 'lax',
             path: '/',
         });
     }

@@ -50,7 +50,7 @@ export class UsersController {
     return { csrfToken };
   }
 
-  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Throttle({ default: { limit: 5, ttl: 600000 } })
   @Post('signup')
   @UseGuards(CsrfGuard)
   async signup(@Body() dto: CreateUserDto, @Res({ passthrough: true }) res: Response) {
@@ -64,7 +64,7 @@ export class UsersController {
     return { accessToken, user, csrfToken };
   }
 
-  // @Throttle({ default: { limit: 5, ttl: 900000 } }) ==== uncoment======
+  @Throttle({ default: { limit: 5, ttl: 600000 } })
   @Post('login')
   @UseGuards(CsrfGuard)
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
@@ -78,9 +78,8 @@ export class UsersController {
     return { accessToken, user, csrfToken };
   }
 
-  // @Throttle({ default: { limit: 1, ttl: 20000 } })
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('refresh')
-  // @UseGuards(RefreshTokenGuard)
   @UseGuards(RefreshTokenGuard, CsrfGuard)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { jti, sub } = req.user as { jti: string, sub: string };
@@ -93,7 +92,7 @@ export class UsersController {
     return { accessToken, user, csrfToken };
   }
 
-  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('logout')
   @UseGuards(RefreshTokenGuard, CsrfGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {

@@ -11,6 +11,7 @@ import { CsrfService } from './csrf.service';
 import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('api/users')
 export class UsersController {
@@ -34,7 +35,7 @@ export class UsersController {
     const baseOptions = {
       httpOnly: true,
       secure: this.isProduction,
-      sameSite: 'none' as const,
+      sameSite: this.isProduction ? 'none' as const : 'lax' as const,
       maxAge: this.getRefreshTokenMaxAge(),
       path: '/',
     };
@@ -76,6 +77,29 @@ export class UsersController {
     this.csrfService.setCsrfCookie(res, csrfToken);
 
     return { accessToken, user, csrfToken };
+  }
+
+  @Get('google/login')
+  @UseGuards(AuthGuard('google'))
+  async googleLogin() {
+    // This endpoint will redirect the user to Google's authentication page
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleCallback(@Req() req, @Res({ passthrough: true }) res: Response) {
+    const { refreshToken } = await this.usersService.findOrCreateGoogleUser(req.user);
+    res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
+
+    // Generate new CSRF token after login
+    const csrfToken = this.csrfService.generateToken();
+    this.csrfService.setCsrfCookie(res, csrfToken);
+
+    const frontendUrl = this.isProduction
+      ? this.configService.get<string>('FRONTEND_URL_PROD')
+      : this.configService.get<string>('FRONTEND_URL_DEV');
+
+    res.redirect(`${frontendUrl}/list`);
   }
 
   @Throttle({ default: { limit: 30, ttl: 60000 } })

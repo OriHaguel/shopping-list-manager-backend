@@ -12,6 +12,7 @@ import { RefreshTokenGuard } from './refresh-token.guard';
 import { CsrfGuard } from './csrf.guard';
 import { CsrfService } from './csrf.service';
 import { ScheduleModule } from '@nestjs/schedule';
+import { GoogleStrategy } from './google.strategy';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService, JwtStrategy, RefreshTokenGuard, CsrfGuard, CsrfService],
+  providers: [UsersService, JwtStrategy, RefreshTokenGuard, CsrfGuard, CsrfService, GoogleStrategy],
   exports: [UsersService, JwtStrategy, PassportModule, CsrfService],
 })
 export class UsersModule { }

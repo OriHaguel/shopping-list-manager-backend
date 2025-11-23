@@ -209,4 +209,23 @@ export class UsersService {
   remove(id: number) {
     return `This action removes a #${id} user`;
   }
+
+  async findOrCreateGoogleUser(profile: any) {
+    const userEmail = profile.email;
+    let user = await this.userModel.findOne({ email: userEmail });
+
+    if (!user) {
+      // If user doesn't exist, create a new one
+      const newUser = new this.userModel({
+        email: userEmail,
+        // Google users might not have a password, so handle this accordingly
+        // You may want to set a random password or leave it undefined
+        // depending on your user model and authentication logic.
+        password: crypto.randomBytes(16).toString('hex'), // Or another strategy
+      });
+      user = await newUser.save();
+    }
+
+    return this.issueTokens(user);
+  }
 }

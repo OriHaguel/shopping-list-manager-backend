@@ -46,4 +46,10 @@ export class ListsController {
     const currentUserId = (req.user as any).userId;
     return this.listsService.addUser(id, addUserToListDto.email, currentUserId);
   }
+
+  @Post(':id/join')
+  joinList(@Param('id') id: string, @Req() req: Request) {
+    const userId = (req.user as any).userId;
+    return this.listsService.joinList(id, userId);
+  }
 }

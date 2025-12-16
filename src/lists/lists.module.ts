@@ -6,9 +6,14 @@ import { List, ListSchema } from './entities/list.entity';
 import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [UsersModule, MongooseModule.forFeature([{ name: List.name, schema: ListSchema }])],
+  imports: [
+    UsersModule,
+    MongooseModule.forFeature([
+      { name: List.name, schema: ListSchema },
+    ]),
+  ],
   controllers: [ListsController],
   providers: [ListsService],
   exports: [ListsService],
 })
-export class ListsModule { }
+export class ListsModule {}

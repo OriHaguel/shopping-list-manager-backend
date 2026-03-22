@@ -123,10 +123,8 @@ export class UsersController {
     const { jti } = req.user as any;
     await this.usersService.logout(jti);
     res.clearCookie(this.refreshTokenCookieName, {
-      httpOnly: true,
-      secure: this.isProduction,
-      sameSite: 'strict',
-      path: '/',
+      ...this.getCookieOptions(),
+      maxAge: 0,
     });
 
     // Clear CSRF token on logout

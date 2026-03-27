@@ -71,17 +71,23 @@ export class ListsService {
     return list.save();
   }
 
+
   async joinList(listId: string, userId: string): Promise<List> {
-    const list = await this.listModel.findById(listId).select('+userId').exec();
+    // $addToSet adds the value to the array ONLY if it doesn't already exist
+    const list = await this.listModel.findByIdAndUpdate(
+      listId,
+      { $addToSet: { userId: userId } },
+      { new: true } // Returns the document after the update
+    ).exec();
+
     if (!list) {
       throw new NotFoundException(`List with ID '${listId}' not found.`);
-    }
-
-    if (!list.userId.includes(userId)) {
-      list.userId.push(userId);
-      await list.save();
     }
 
     return list;
   }
 }
+
+
+
+

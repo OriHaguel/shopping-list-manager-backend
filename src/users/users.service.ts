@@ -198,8 +198,17 @@ export class UsersService {
     return `This action returns all users`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  findOne(id: string) {
+    return this.userModel.findOne({ _id: id }).exec();
+  }
+
+
+  async findUsersEmail(usersId: string[], loggedInUserId: string): Promise<string[]> {
+    const users = await this.userModel.find({ _id: { $in: usersId } }).exec();
+
+    return users
+      .filter(user => user._id.toString() !== loggedInUserId)
+      .map(user => user.email);
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {

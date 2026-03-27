@@ -140,9 +140,16 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('email')
+  findUserEmail(@Body('usersId') usersId: string[], @Req() req: Request) {
+    const userId = (req.user as any).userId;
+    return this.usersService.findUsersEmail(usersId, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.usersService.findOne(+id);
+    return this.usersService.findOne(id);
   }
 
   @UseGuards(JwtAuthGuard)

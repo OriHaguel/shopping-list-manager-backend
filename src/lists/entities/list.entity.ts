@@ -6,7 +6,7 @@ export class List extends Document {
     @Prop()
     name: string;
 
-    @Prop({ type: [String], required: true, select: false })
+    @Prop({ type: [String], required: true })
     userId: string[];
 }
 

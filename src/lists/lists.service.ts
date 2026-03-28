@@ -42,10 +42,26 @@ export class ListsService {
   }
 
   async remove(id: string, userId: string): Promise<{ message: string }> {
-    const result = await this.listModel.deleteOne({ _id: id, userId }).exec();
-    if (result.deletedCount === 0) {
+    const list = await this.listModel.findOne({ _id: id }).exec();
+    
+    if (!list) {
       throw new NotFoundException(`List with ID '${id}' not found`);
     }
+    
+    // Check if the current user is in the list
+    if (!list.userId.includes(userId)) {
+      throw new NotFoundException(`You don't have permission to remove this list`);
+    }
+    
+    // If there's more than one user, just remove current user from the array
+    if (list.userId.length > 1) {
+      list.userId = list.userId.filter(id => id.toString() !== userId);
+      await list.save();
+      return { message: `You have been removed from List with ID '${id}'` };
+    }
+    
+    // If only one user, delete the list
+    await this.listModel.deleteOne({ _id: id }).exec();
     return { message: `List with ID '${id}' has been successfully deleted` };
   }
 

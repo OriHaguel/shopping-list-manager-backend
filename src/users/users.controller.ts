@@ -134,7 +134,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get()
+  @Get('all')
   findAll() {
     return this.usersService.findAll();
   }
@@ -147,9 +147,10 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  @Get()
+  findOne(@Req() req: Request) {
+    const userId = (req.user as any).userId;
+    return this.usersService.findOne(userId);
   }
 
   @UseGuards(JwtAuthGuard)

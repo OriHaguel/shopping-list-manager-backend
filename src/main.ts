@@ -7,11 +7,11 @@ import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // if (process.env.NODE_ENV !== 'production') {
-  //   const connection = app.get(getConnectionToken());
-  //   await connection.syncIndexes();
-  //   console.log('Indexes synchronized');
-  // }
+  if (process.env.NODE_ENV !== 'production') {
+    const connection = app.get(getConnectionToken());
+    await connection.syncIndexes();
+    console.log('Indexes synchronized');
+  }
   app.enableCors({
     origin: [
       'http://127.0.0.1:3000',

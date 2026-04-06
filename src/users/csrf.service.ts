@@ -7,10 +7,12 @@ import * as crypto from 'crypto';
 export class CsrfService {
     private readonly isProduction: boolean;
     private readonly csrfCookieName: string;
+    private readonly domain: string;
 
     constructor(private readonly configService: ConfigService) {
         this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
         this.csrfCookieName = this.isProduction ? '__Host-csrf-token' : 'csrf-token';
+        this.domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
     }
 
     generateToken(): string {
@@ -28,6 +30,9 @@ export class CsrfService {
 
         if (this.isProduction) {
             cookieOptions.partitioned = true;
+            if (this.domain) {
+                cookieOptions.domain = this.domain;
+            }
         }
 
         res.cookie(this.csrfCookieName, token, cookieOptions);
@@ -40,6 +45,9 @@ export class CsrfService {
             sameSite: this.isProduction ? 'none' : 'lax',
             path: '/',
         };
+        if (this.domain) {
+            options.domain = this.domain;
+        }
 
         if (this.isProduction) {
             options.partitioned = true;

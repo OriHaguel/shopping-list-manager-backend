@@ -7,12 +7,10 @@ import * as crypto from 'crypto';
 export class CsrfService {
     private readonly isProduction: boolean;
     private readonly csrfCookieName: string;
-    private readonly domain: string;
 
     constructor(private readonly configService: ConfigService) {
         this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
         this.csrfCookieName = this.isProduction ? '__Host-csrf-token' : 'csrf-token';
-        this.domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
     }
 
     generateToken(): string {
@@ -20,7 +18,7 @@ export class CsrfService {
     }
 
     setCsrfCookie(res: Response, token: string): void {
-        const cookieOptions: any = {
+        const cookieOptions = {
             httpOnly: true,
             secure: this.isProduction,
             sameSite: this.isProduction ? 'none' as const : 'lax' as const,
@@ -28,31 +26,15 @@ export class CsrfService {
             path: '/',
         };
 
-        if (this.isProduction) {
-            cookieOptions.partitioned = true;
-            if (this.domain) {
-                cookieOptions.domain = this.domain;
-            }
-        }
-
         res.cookie(this.csrfCookieName, token, cookieOptions);
     }
 
     clearCsrfCookie(res: Response): void {
-        const options: any = {
+        res.clearCookie(this.csrfCookieName, {
             httpOnly: true,
             secure: this.isProduction,
             sameSite: this.isProduction ? 'none' : 'lax',
             path: '/',
-        };
-        if (this.domain) {
-            options.domain = this.domain;
-        }
-
-        if (this.isProduction) {
-            options.partitioned = true;
-        }
-
-        res.clearCookie(this.csrfCookieName, options);
+        });
     }
 }

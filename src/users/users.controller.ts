@@ -17,7 +17,6 @@ import { AuthGuard } from '@nestjs/passport';
 export class UsersController {
   private readonly refreshTokenCookieName: string;
   private readonly isProduction: boolean;
-  private readonly domain: string;
 
   constructor(
     private readonly usersService: UsersService,
@@ -26,7 +25,6 @@ export class UsersController {
   ) {
     this.isProduction = this.configService.get<string>('NODE_ENV') === 'production';
     this.refreshTokenCookieName = this.isProduction ? '__Host-refresh-token' : 'refresh-token';
-    this.domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
   }
 
   private getRefreshTokenMaxAge(): number {
@@ -41,11 +39,6 @@ export class UsersController {
       maxAge: this.getRefreshTokenMaxAge(),
       path: '/',
     };
-
-    if (this.isProduction && this.domain) {
-      (baseOptions as any).domain = this.domain;
-      (baseOptions as any).partitioned = true;
-    }
 
     return baseOptions;
   }

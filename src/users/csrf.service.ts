@@ -18,7 +18,7 @@ export class CsrfService {
     }
 
     setCsrfCookie(res: Response, token: string): void {
-        const cookieOptions: any = {
+        const cookieOptions = {
             httpOnly: true,
             secure: this.isProduction,
             sameSite: this.isProduction ? 'none' as const : 'lax' as const,
@@ -26,25 +26,15 @@ export class CsrfService {
             path: '/',
         };
 
-        if (this.isProduction) {
-            cookieOptions.partitioned = true;
-        }
-
         res.cookie(this.csrfCookieName, token, cookieOptions);
     }
 
     clearCsrfCookie(res: Response): void {
-        const cookieOptions: any = {
+        res.clearCookie(this.csrfCookieName, {
             httpOnly: true,
             secure: this.isProduction,
             sameSite: this.isProduction ? 'none' : 'lax',
             path: '/',
-        };
-
-        if (this.isProduction) {
-            cookieOptions.partitioned = true;
-        }
-
-        res.clearCookie(this.csrfCookieName, cookieOptions);
+        });
     }
 }

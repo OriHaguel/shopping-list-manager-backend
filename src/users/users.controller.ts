@@ -32,17 +32,13 @@ export class UsersController {
   }
 
   private getCookieOptions() {
-    const baseOptions: any = {
+    const baseOptions = {
       httpOnly: true,
       secure: this.isProduction,
       sameSite: this.isProduction ? 'none' as const : 'lax' as const,
       maxAge: this.getRefreshTokenMaxAge(),
       path: '/',
     };
-
-    if (this.isProduction) {
-      baseOptions.partitioned = true;
-    }
 
     return baseOptions;
   }
@@ -91,7 +87,7 @@ export class UsersController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleCallback(@Req() req, @Res() res: Response) {
+  async googleCallback(@Req() req, @Res({ passthrough: true }) res: Response) {
     const { refreshToken } = await this.usersService.findOrCreateGoogleUser(req.user);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
 

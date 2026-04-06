@@ -91,7 +91,7 @@ export class UsersController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleCallback(@Req() req, @Res({ passthrough: true }) res: Response) {
+  async googleCallback(@Req() req, @Res() res: Response) {
     const { refreshToken } = await this.usersService.findOrCreateGoogleUser(req.user);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
 

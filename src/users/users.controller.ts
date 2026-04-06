@@ -32,13 +32,17 @@ export class UsersController {
   }
 
   private getCookieOptions() {
-    const baseOptions = {
+    const baseOptions: any = {
       httpOnly: true,
       secure: this.isProduction,
       sameSite: this.isProduction ? 'none' as const : 'lax' as const,
       maxAge: this.getRefreshTokenMaxAge(),
       path: '/',
     };
+
+    if (this.isProduction) {
+      baseOptions.partitioned = true;
+    }
 
     return baseOptions;
   }

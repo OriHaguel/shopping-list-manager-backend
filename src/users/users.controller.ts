@@ -95,7 +95,7 @@ export class UsersController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   async googleCallback(@Req() req, @Res({ passthrough: true }) res: Response) {
-    const { refreshToken, accessToken, user } = await this.usersService.findOrCreateGoogleUser(req.user);
+    const { refreshToken } = await this.usersService.findOrCreateGoogleUser(req.user);
     res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
 
     // Generate new CSRF token after login
@@ -106,14 +106,7 @@ export class UsersController {
       ? this.configService.get<string>('FRONTEND_URL_PROD')
       : this.configService.get<string>('FRONTEND_URL_DEV');
 
-    // Return tokens instead of redirect to ensure cookies are persisted
-    // Frontend will handle the redirect
-    return {
-      redirectUrl: `${frontendUrl}/list`,
-      accessToken,
-      user,
-      csrfToken,
-    };
+    res.redirect(`${frontendUrl}/list`);
   }
 
   @Throttle({ default: { limit: 30, ttl: 60000 } })

@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Param, Delete, UseGuards, Req, Put } from 
 import { ItemsService } from './items.service';
 import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { BulkToggleCheckDto } from './dto/bulk-toggle-check.dto';
 import { JwtAuthGuard } from '../users/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
@@ -17,6 +18,11 @@ export class ItemsController {
   @Get('all/:listId')
   findAll(@Param('listId') listId: string, @Req() req) {
     return this.itemsService.findAll(listId, req.user.userId);
+  }
+
+  @Put('bulk')
+  bulkToggleCheck(@Body() bulkToggleCheckDto: BulkToggleCheckDto, @Req() req) {
+    return this.itemsService.bulkToggleCheck(bulkToggleCheckDto.items, req.user.userId);
   }
 
   @Get(':id')

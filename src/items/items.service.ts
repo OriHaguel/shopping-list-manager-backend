@@ -11,7 +11,7 @@ export class ItemsService {
   constructor(
     @InjectModel(Item.name) private itemModel: Model<ItemDocument>,
     private readonly listsService: ListsService,
-  ) {}
+  ) { }
 
   async create(createItemDto: CreateItemDto, userId: string): Promise<ItemDocument> {
     const list = await this.listsService.findOne(createItemDto.listId, userId);
@@ -52,4 +52,32 @@ export class ItemsService {
     const item = await this.findOne(id, userId);
     return this.itemModel.deleteOne({ _id: item._id }).exec();
   }
-}
+
+  async bulkToggleCheck(bulkItems: Array<{ itemId: string; checked: boolean }>, userId: string) {
+    if (!bulkItems || bulkItems.length === 0) {
+      throw new NotFoundException('No items provided');
+    }
+
+    // BulkWrite all items
+    const result = await this.itemModel.bulkWrite(
+      bulkItems.map(({ itemId, checked }) => ({
+        updateOne: {
+          filter: { _id: itemId },
+          update: { $set: { checked } },
+        },
+      })),
+    );
+
+    // Verify all items were updated
+    if (result.modifiedCount !== bulkItems.length) {
+      throw new NotFoundException('One or more items not found');
+    }
+    return {
+      success: true,
+      count: result.modifiedCount,
+    };
+  }
+};
+
+
+

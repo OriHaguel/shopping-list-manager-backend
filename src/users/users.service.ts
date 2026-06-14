@@ -22,15 +22,56 @@ export class UsersService {
   ) { }
 
   async signup(createUserDto: CreateUserDto) {
-    const existingUser = await this.userModel.findOne({ email: createUserDto.email });
-    if (existingUser) throw new ConflictException('Email already exists');
-
     const hashedPassword = await bcrypt.hash(createUserDto.password, 12);
+
+    const existingUser = await this.userModel.findOne({ email: createUserDto.email });
+    // If userId is provided, update the existing user
+
+    if (existingUser) {
+      throw new ConflictException('Email already exists');
+    }
+
+    if (createUserDto.userId) {
+      const user = await this.userModel.findByIdAndUpdate(
+        createUserDto.userId,
+        {
+          email: createUserDto.email,
+          password: hashedPassword,
+        },
+        { new: true }
+      );
+
+      if (!user) {
+        throw new ConflictException('User not found');
+      }
+
+      return this.issueTokens(user);
+    }
+
     const createdUser = new this.userModel({
-      ...createUserDto,
+      email: createUserDto.email,
       password: hashedPassword,
     });
     const user = await createdUser.save();
+
+    return this.issueTokens(user);
+  }
+
+  async createGuestUser() {
+    const createdUser = new this.userModel({
+      email: undefined,
+      password: undefined,
+    });
+    const user = await createdUser.save();
+
+    return this.issueTokens(user);
+  }
+
+  async loginGuestUser(userId: string) {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
 
     return this.issueTokens(user);
   }
@@ -219,20 +260,44 @@ export class UsersService {
     return `This action removes a #${id} user`;
   }
 
-  async findOrCreateGoogleUser(profile: any) {
+  async findOrCreateGoogleUser(profile: any, userId?: string) {
+    console.log("🚀 ~ UsersService ~ findOrCreateGoogleUser ~ userId:", userId)
     const userEmail = profile.email;
     let user = await this.userModel.findOne({ email: userEmail });
+    const password = await bcrypt.hash(
+      crypto.randomBytes(16).toString('hex'),
+      12,
+    );
+    // If userId is provided, link the Google account to the existing guest user
+    if (!user && userId) {
+      user = await this.userModel.findByIdAndUpdate(
+        userId,
+        {
+          email: userEmail,
+          // Generate a secure password for Google users
+          password: password,
+        },
+        { new: true }
+      );
+      console.log("modifing user", userId)
 
-    if (!user) {
-      // If user doesn't exist, create a new one
-      const newUser = new this.userModel({
-        email: userEmail,
-        // Google users might not have a password, so handle this accordingly
-        // You may want to set a random password or leave it undefined
-        // depending on your user model and authentication logic.
-        password: crypto.randomBytes(16).toString('hex'), // Or another strategy
-      });
-      user = await newUser.save();
+      if (!user) {
+        throw new UnauthorizedException('Guest user not found');
+      }
+    } else {
+      // Otherwise, find or create by email
+      console.log('user exist')
+
+      if (!user) {
+        console.log('user doesnt exist, creating new one')
+        // If user doesn't exist, create a new one
+
+        const newUser = new this.userModel({
+          email: userEmail,
+          password: password,
+        });
+        user = await newUser.save();
+      }
     }
 
     return this.issueTokens(user);

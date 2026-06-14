@@ -3,11 +3,21 @@ import { Document } from 'mongoose';
 
 @Schema()
 export class User extends Document {
-    @Prop({ required: true, unique: true, trim: true, match: /^\S+@\S+\.\S+$/ })
-    email: string;
 
-    @Prop({ required: true, select: false, minlength: 6 })
-    password: string;
+    @Prop({
+        required: false,
+        unique: true,
+        sparse: true,
+        trim: true,
+        match: /^\S+@\S+\.\S+$/
+    })
+    email?: string;
+
+    @Prop({
+        required: false,
+        select: false
+    })
+    password?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

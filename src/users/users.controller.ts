@@ -58,14 +58,16 @@ export class UsersController {
 
   @Post('create-guest')
   async createGuestUser(@Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, user } = await this.usersService.createGuestUser();
-    res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
-
-    // Generate new CSRF token after guest user creation
-    const csrfToken = this.csrfService.generateToken();
-    this.csrfService.setCsrfCookie(res, csrfToken);
-
-    return { accessToken, user, csrfToken };
+    try {
+      const { accessToken, refreshToken, user } = await this.usersService.createGuestUser();
+      res.cookie(this.refreshTokenCookieName, refreshToken, this.getCookieOptions());
+      const csrfToken = this.csrfService.generateToken();
+      this.csrfService.setCsrfCookie(res, csrfToken);
+      return { accessToken, user, csrfToken };
+    } catch (error) {
+      console.error('CRITICAL BACKEND ERROR:', error);
+      throw error; // Let NestJS handle it, but now it's definitely logged
+    }
   }
 
   @Post('login-guest')

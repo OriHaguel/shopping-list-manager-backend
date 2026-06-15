@@ -58,12 +58,16 @@ export class UsersService {
   }
 
   async createGuestUser() {
+    console.log('Creating guest user');
     const createdUser = new this.userModel({
       email: undefined,
       password: undefined,
     });
     const user = await createdUser.save();
 
+    if (!user) {
+      throw new UnauthorizedException('Failed to create guest user');
+    }
     return this.issueTokens(user);
   }
 

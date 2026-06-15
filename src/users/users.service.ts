@@ -58,7 +58,6 @@ export class UsersService {
   }
 
   async createGuestUser() {
-    console.log('Creating guest user');
     const createdUser = new this.userModel({
       email: undefined,
       password: undefined,
@@ -265,7 +264,6 @@ export class UsersService {
   }
 
   async findOrCreateGoogleUser(profile: any, userId?: string) {
-    console.log("🚀 ~ UsersService ~ findOrCreateGoogleUser ~ userId:", userId)
     const userEmail = profile.email;
     let user = await this.userModel.findOne({ email: userEmail });
     const password = await bcrypt.hash(
@@ -283,17 +281,14 @@ export class UsersService {
         },
         { new: true }
       );
-      console.log("modifing user", userId)
 
       if (!user) {
         throw new UnauthorizedException('Guest user not found');
       }
     } else {
       // Otherwise, find or create by email
-      console.log('user exist')
 
       if (!user) {
-        console.log('user doesnt exist, creating new one')
         // If user doesn't exist, create a new one
 
         const newUser = new this.userModel({

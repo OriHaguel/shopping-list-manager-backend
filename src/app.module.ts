@@ -10,6 +10,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ListsModule } from './lists/lists.module';
 import { ItemsModule } from './items/items.module';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -43,7 +44,7 @@ import { ItemsModule } from './items/items.module';
     ListsModule,
     ItemsModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController,HealthController],
   providers: [AppService, {
     provide: APP_GUARD,
     useClass: ThrottlerGuard,
